@@ -3,4 +3,7 @@ name = "system_monitor"
 version = "0.1.0"
 edition = "2024"
 
+description = "Real-time system monitor — CPU, RAM, Disks, Network, and Processes"
+
 [dependencies]
+sysinfo = "0.38"
