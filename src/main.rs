@@ -174,7 +174,7 @@ fn main() {
         let mut processes: Vec<_> = sys.processes().values().collect();
         processes.sort_by(|a, b| b.cpu_usage().partial_cmp(&a.cpu_usage()).unwrap());
 
-        println!("  {:>7}  {:>7}  {:>10}  {}", "CPU%", "MEM", "PID", "Name");
+        println!("  {:>7}  {:>7}  {:>10}  Name", "CPU%", "MEM", "PID");
         println!("  {}", "-".repeat(45));
         for proc in processes.iter().take(5) {
             println!(
