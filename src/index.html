@@ -1,694 +1,409 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🦀 Monitor del Sistema — Rust</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0a0c10;
-            --surface: #0f1117;
-            --border: #1e2330;
-            --accent: #ff4d00;
-            --accent2: #ff8c42;
-            --green: #39d353;
-            --yellow: #f0c040;
-            --red: #ff4d4d;
-            --blue: #4da6ff;
-            --purple: #a78bfa;
-            --text: #e2e8f0;
-            --muted: #4a5568;
-            --rust: #ce422b;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Noise texture */
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 999;
-        }
-
-        .header {
-            padding: 20px 24px 16px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: linear-gradient(90deg, rgba(206, 66, 43, 0.08) 0%, transparent 60%);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .rust-logo {
-            width: 36px;
-            height: 36px;
-            background: var(--rust);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            box-shadow: 0 0 20px rgba(206, 66, 43, 0.4);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                box-shadow: 0 0 20px rgba(206, 66, 43, 0.4);
-            }
-
-            50% {
-                box-shadow: 0 0 35px rgba(206, 66, 43, 0.7);
-            }
-        }
-
-        .header h1 {
-            font-family: 'Syne', sans-serif;
-            font-size: 18px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-
-        .header h1 span {
-            color: var(--rust);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--green);
-            border-radius: 50%;
-            animation: blink 1s ease-in-out infinite;
-            box-shadow: 0 0 8px var(--green);
-        }
-
-        @keyframes blink {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.3;
-            }
-        }
-
-        .uptime {
-            color: var(--muted);
-            font-size: 11px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto auto;
-            gap: 1px;
-            background: var(--border);
-            height: calc(100vh - 73px);
-        }
-
-        .panel {
-            background: var(--surface);
-            padding: 18px 20px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .panel:nth-child(1) {
-            grid-column: 1;
-            grid-row: 1;
-        }
-
-        .panel:nth-child(2) {
-            grid-column: 2;
-            grid-row: 1 / 3;
-        }
-
-        .panel:nth-child(3) {
-            grid-column: 1;
-            grid-row: 2;
-        }
-
-        .panel:nth-child(4) {
-            grid-column: 1 / 3;
-            grid-row: 3;
-        }
-
-        .panel-title {
-            font-family: 'Syne', sans-serif;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .panel-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
-
-        /* CPU Panel */
-        .cpu-total {
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
-            margin-bottom: 14px;
-        }
-
-        .cpu-big {
-            font-family: 'Syne', sans-serif;
-            font-size: 52px;
-            font-weight: 800;
-            line-height: 1;
-            color: var(--accent);
-            text-shadow: 0 0 30px rgba(255, 77, 0, 0.3);
-        }
-
-        .cpu-unit {
-            color: var(--muted);
-            font-size: 16px;
-        }
-
-        .cores-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-        }
-
-        .core-item {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px;
-            text-align: center;
-        }
-
-        .core-label {
-            font-size: 9px;
-            color: var(--muted);
-            margin-bottom: 4px;
-        }
-
-        .core-ring {
-            position: relative;
-            width: 36px;
-            height: 36px;
-            margin: 0 auto;
-        }
-
-        .core-ring svg {
-            transform: rotate(-90deg);
-        }
-
-        .core-ring-bg {
-            stroke: var(--border);
-        }
-
-        .core-ring-fill {
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.8s ease, stroke 0.5s;
-        }
-
-        .core-pct {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 9px;
-            font-weight: 600;
-        }
-
-        /* RAM Panel */
-        .mem-arc {
-            display: flex;
-            justify-content: center;
-            margin: 10px 0;
-            position: relative;
-        }
-
-        .mem-arc svg {
-            overflow: visible;
-        }
-
-        .mem-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .mem-stat {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-        }
-
-        .mem-stat-val {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--blue);
-        }
-
-        .mem-stat-label {
-            font-size: 9px;
-            color: var(--muted);
-            margin-top: 2px;
-        }
-
-        /* Processes Panel */
-        .proc-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .proc-table th {
-            text-align: left;
-            font-size: 9px;
-            letter-spacing: 1.5px;
-            color: var(--muted);
-            padding: 0 8px 8px 0;
-            border-bottom: 1px solid var(--border);
-            text-transform: uppercase;
-        }
-
-        .proc-table td {
-            padding: 6px 8px 6px 0;
-            border-bottom: 1px solid rgba(30, 35, 48, 0.5);
-            font-size: 11px;
-            vertical-align: middle;
-        }
-
-        .proc-name {
-            font-weight: 600;
-            color: var(--text);
-            max-width: 140px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .proc-pid {
-            color: var(--muted);
-            font-size: 10px;
-        }
-
-        .mini-bar {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .mini-bar-track {
-            flex: 1;
-            height: 4px;
-            background: var(--border);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .mini-bar-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.8s ease;
-        }
-
-        .mini-bar-val {
-            font-size: 10px;
-            min-width: 36px;
-            text-align: right;
-        }
-
-        /* History chart */
-        .history-panel {
-            padding: 16px 20px;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-        }
-
-        canvas#historyChart {
-            width: 100%;
-            height: 50px;
-        }
-
-        .chart-legend {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 8px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 10px;
-            color: var(--muted);
-        }
-
-        .legend-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .proc-table tbody tr {
-            transition: background 0.2s;
-        }
-
-        .proc-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        /* Disk panel inside processes panel */
-        .disk-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-        }
-
-        .disk-name {
-            font-size: 10px;
-            color: var(--muted);
-            min-width: 50px;
-        }
-
-        .disk-bar-track {
-            flex: 1;
-            height: 6px;
-            background: var(--border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .disk-bar-fill {
-            height: 100%;
-            border-radius: 3px;
-            transition: width 1s ease;
-            background: linear-gradient(90deg, var(--purple), var(--blue));
-        }
-
-        .disk-pct {
-            font-size: 10px;
-            min-width: 36px;
-            text-align: right;
-        }
-
-        .disk-size {
-            font-size: 10px;
-            color: var(--muted);
-            min-width: 100px;
-            text-align: right;
-        }
-
-        .tag {
-            display: inline-block;
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            background: rgba(206, 66, 43, 0.15);
-            color: var(--rust);
-            border: 1px solid rgba(206, 66, 43, 0.3);
-        }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Monitor — Rust</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap"
+        rel="stylesheet" />
+    <style type="text/tailwindcss">
+        @theme {
+        --font-mono: "JetBrains Mono", monospace;
+        --color-bg:        #0a0c10;
+        --color-surface:   #0f1117;
+        --color-border:    #1e2330;
+        --color-rust:      #ce422b;
+        --color-rust-dim:  #7a1f10;
+        --color-accent:    #ff4d00;
+        --color-green:     #39d353;
+        --color-yellow:    #f0c040;
+        --color-red:       #ff4d4d;
+        --color-blue:      #4da6ff;
+        --color-purple:    #a78bfa;
+        --color-muted:     #4a5568;
+        --color-text:      #e2e8f0;
+      }
+
+      body {
+        font-family: var(--font-mono);
+        background-color: var(--color-bg);
+        color: var(--color-text);
+      }
+
+      /* blink animation for status dot */
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.2; }
+      }
+      .animate-blink { animation: blink 1.2s ease-in-out infinite; }
+
+      /* rust logo pulse */
+      @keyframes rust-pulse {
+        0%, 100% { box-shadow: 0 0 16px 2px #ce422b55; }
+        50%       { box-shadow: 0 0 28px 6px #ce422b99; }
+      }
+      .animate-rust-pulse { animation: rust-pulse 2s ease-in-out infinite; }
+
+      /* ring progress via stroke-dashoffset (set by JS) */
+      .ring-fill {
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.9s ease, stroke 0.4s;
+      }
     </style>
 </head>
 
-<body>
+<body class="min-h-screen overflow-x-hidden text-[13px]">
 
-    <div class="header">
-        <div class="header-left">
-            <div class="rust-logo">🦀</div>
+    <!-- ── header ─────────────────────────────────────────────────── -->
+    <header class="flex items-center justify-between px-6 py-4 border-b border-border"
+        style="background: linear-gradient(90deg, rgba(206,66,43,0.08) 0%, transparent 60%)">
+        <div class="flex items-center gap-3">
+            <!-- rust logo -->
+            <div class="w-9 h-9 rounded-full bg-rust flex items-center justify-center text-lg animate-rust-pulse">R
+            </div>
+
             <div>
-                <h1>Monitor del Sistema — <span>Rust</span></h1>
-                <div class="uptime" id="uptime">uptime: 0h 0m 0s</div>
+                <h1 class="text-[18px] font-bold tracking-tight">
+                    System Monitor —
+                    <span class="text-rust">Rust</span>
+                </h1>
+                <p class="text-muted text-[11px]" id="uptime">uptime: 0h 0m 0s</p>
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-            <span class="tag">simulación</span>
-            <div class="status-dot"></div>
-            <span style="color:var(--muted);font-size:10px;" id="clock">--:--:--</span>
-        </div>
-    </div>
 
-    <div class="grid">
-        <!-- CPU -->
-        <div class="panel" id="cpu-panel">
-            <div class="panel-title">CPU</div>
-            <div class="cpu-total">
-                <div class="cpu-big" id="cpu-total-val">0</div>
-                <div class="cpu-unit">%</div>
-                <div style="margin-left:auto;text-align:right;">
-                    <div style="font-size:10px;color:var(--muted);">8 cores</div>
-                    <div style="font-size:10px;color:var(--muted);">Intel Core i7</div>
+        <div class="flex items-center gap-3">
+            <!-- simulation badge -->
+            <span class="px-2 py-0.5 rounded text-[9px] font-bold tracking-widest uppercase
+                 bg-rust/15 text-rust border border-rust/30">simulation</span>
+
+            <!-- live dot -->
+            <span class="w-2 h-2 rounded-full bg-green animate-blink shadow-[0_0_6px_#39d353]"></span>
+
+            <!-- clock -->
+            <span class="text-muted text-[10px]" id="clock">--:--:--</span>
+        </div>
+    </header>
+
+    <!-- ── main grid ──────────────────────────────────────────────── -->
+    <div class="grid gap-px bg-border" style="
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        height: calc(100vh - 73px);
+      ">
+        <!-- panel: cpu -->
+        <div class="bg-surface p-5 overflow-hidden" style="grid-column:1; grid-row:1">
+            <p class="section-label">CPU</p>
+
+            <!-- big number + model -->
+            <div class="flex items-baseline gap-2 mb-4">
+                <span id="cpu-total-val" class="text-[52px] font-bold leading-none text-accent"
+                    style="text-shadow: 0 0 28px rgba(255,77,0,0.3)">0</span>
+                <span class="text-muted text-base">%</span>
+
+                <div class="ml-auto text-right">
+                    <p class="text-[10px] text-muted" id="cpu-model">—</p>
+                    <p class="text-[10px] text-muted" id="cpu-cores">— cores</p>
                 </div>
             </div>
-            <div class="cores-grid" id="cores-grid"></div>
-            <canvas id="cpuHistory" style="width:100%;height:40px;margin-top:12px;"></canvas>
+
+            <!-- core rings -->
+            <div class="grid grid-cols-4 gap-1.5" id="cores-grid"></div>
+
+            <!-- sparkline -->
+            <canvas id="cpu-sparkline" class="w-full mt-3" style="height:40px"></canvas>
         </div>
 
-        <!-- Processes -->
-        <div class="panel" id="proc-panel">
-            <div class="panel-title">Procesos</div>
-            <table class="proc-table">
+        <!-- panel: processes -->
+        <div class="bg-surface p-5 overflow-auto" style="grid-column:2; grid-row:1/3">
+            <p class="section-label">Processes</p>
+
+            <table class="w-full border-collapse">
                 <thead>
-                    <tr>
-                        <th>Proceso</th>
-                        <th>PID</th>
-                        <th>CPU</th>
-                        <th>RAM</th>
+                    <tr class="text-[9px] tracking-widest uppercase text-muted border-b border-border">
+                        <th class="text-left pb-2 pr-2">Process</th>
+                        <th class="text-left pb-2 pr-2">PID</th>
+                        <th class="text-left pb-2 pr-2">CPU</th>
+                        <th class="text-left pb-2">RAM</th>
                     </tr>
                 </thead>
                 <tbody id="proc-tbody"></tbody>
             </table>
         </div>
 
-        <!-- RAM + Discos -->
-        <div class="panel" id="ram-panel">
-            <div class="panel-title">Memoria RAM</div>
-            <div class="mem-arc" id="mem-arc-container"></div>
-            <div class="mem-info-grid" id="mem-info-grid"></div>
-            <div style="margin-top:14px;">
-                <div class="panel-title" style="margin-bottom:10px;">Discos</div>
+        <!-- panel: ram + disks -->
+        <div class="bg-surface p-5 overflow-hidden" style="grid-column:1; grid-row:2">
+            <p class="section-label">Memory</p>
+
+            <!-- arc gauge -->
+            <div class="flex justify-center my-2" id="mem-arc-container"></div>
+
+            <!-- stats row -->
+            <div class="grid grid-cols-3 gap-2 mt-3" id="mem-info-grid"></div>
+
+            <!-- disks -->
+            <div class="mt-4">
+                <p class="section-label">Disks</p>
                 <div id="disks-container"></div>
             </div>
         </div>
 
-        <!-- History -->
-        <div class="panel" style="padding:16px 20px;">
-            <div class="panel-title">Historial CPU + RAM</div>
-            <div class="chart-legend">
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:var(--accent)"></div>CPU
+        <!-- panel: history chart -->
+        <div class="bg-surface px-5 py-4" style="grid-column:1/3; grid-row:3">
+            <p class="section-label">CPU + RAM History</p>
+
+            <div class="flex gap-4 mb-2">
+                <div class="flex items-center gap-1.5 text-[10px] text-muted">
+                    <span class="w-2 h-2 rounded-full bg-accent"></span>CPU
                 </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background:var(--blue)"></div>RAM
+                <div class="flex items-center gap-1.5 text-[10px] text-muted">
+                    <span class="w-2 h-2 rounded-full bg-blue"></span>RAM
                 </div>
             </div>
-            <canvas id="historyChart" style="width:100%;height:60px;"></canvas>
+
+            <canvas id="historyChart" class="w-full" style="height:60px"></canvas>
         </div>
     </div>
 
+    <!-- ── inline styles for repeated patterns ───────────────────── -->
+    <style>
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--color-muted);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--color-border);
+        }
+    </style>
+
     <script>
-        // ── State ──────────────────────────────────────────────────────────────
+        // ── constants ────────────────────────────────────────────────
         const NUM_CORES = 8;
         const HISTORY_LEN = 60;
+        const RAM_TOTAL = 32;
 
+        const C = {
+            bg: '#0a0c10',
+            surface: '#0f1117',
+            border: '#1e2330',
+            accent: '#ff4d00',
+            green: '#39d353',
+            yellow: '#f0c040',
+            red: '#ff4d4d',
+            blue: '#4da6ff',
+            purple: '#a78bfa',
+            muted: '#4a5568',
+            text: '#e2e8f0',
+        };
+
+        // ── state ────────────────────────────────────────────────────
         let cpuHistory = Array(HISTORY_LEN).fill(0);
         let ramHistory = Array(HISTORY_LEN).fill(0);
         let uptimeSeconds = 0;
 
         const PROCESSES = [
-            { name: "firefox", pid: 1234 },
-            { name: "code", pid: 2341 },
-            { name: "cargo", pid: 3412 },
-            { name: "rustc", pid: 4123 },
-            { name: "node", pid: 5231 },
-            { name: "postgres", pid: 6312 },
-            { name: "sysmon", pid: 7421 },
-            { name: "docker", pid: 8132 },
-            { name: "nginx", pid: 9213 },
-            { name: "bash", pid: 1032 },
+            { name: 'firefox', pid: 1234 },
+            { name: 'code', pid: 2341 },
+            { name: 'cargo', pid: 3412 },
+            { name: 'rustc', pid: 4123 },
+            { name: 'node', pid: 5231 },
+            { name: 'postgres', pid: 6312 },
+            { name: 'sysmon', pid: 7421 },
+            { name: 'docker', pid: 8132 },
+            { name: 'nginx', pid: 9213 },
+            { name: 'bash', pid: 1032 },
         ];
 
         const DISKS = [
-            { name: "/", used: 180, total: 500 },
-            { name: "/home", used: 320, total: 1000 },
-            { name: "/tmp", used: 4, total: 20 },
+            { name: '/', used: 180, total: 500 },
+            { name: '/home', used: 320, total: 1000 },
+            { name: '/tmp', used: 4, total: 20 },
         ];
 
-        // Smooth random values
-        function smoothRandom(prev, min, max, delta) {
-            const change = (Math.random() - 0.5) * delta;
-            return Math.max(min, Math.min(max, prev + change));
+        // detect simulated os for cpu model label
+        const SIM_OS = (() => {
+            const ua = navigator.userAgent;
+            if (ua.includes('Mac')) return { model: 'Apple M1 Pro', cores: 10 };
+            if (ua.includes('Windows')) return { model: 'Intel Core i7-12700K', cores: 12 };
+            return { model: 'AMD Ryzen 7 5800X', cores: 8 };
+        })();
+
+        document.getElementById('cpu-model').textContent = SIM_OS.model;
+        document.getElementById('cpu-cores').textContent = SIM_OS.cores + ' cores';
+
+        // ── helpers ──────────────────────────────────────────────────
+        function smooth(prev, min, max, delta) {
+            return Math.max(min, Math.min(max, prev + (Math.random() - 0.5) * delta));
         }
 
         let coreValues = Array(NUM_CORES).fill(0).map(() => 20 + Math.random() * 60);
         let ramUsed = 8.4;
-        const RAM_TOTAL = 32;
         let procCpus = PROCESSES.map(() => Math.random() * 30);
         let procMems = PROCESSES.map(() => 100 + Math.random() * 2000);
 
-        // ── Render Cores ────────────────────────────────────────────────────────
+        function coreColor(v) {
+            return v > 80 ? C.red : v > 50 ? C.yellow : C.green;
+        }
+
+        // ── init core rings ──────────────────────────────────────────
         function initCores() {
             const grid = document.getElementById('cores-grid');
-            grid.innerHTML = '';
-            for (let i = 0; i < NUM_CORES; i++) {
-                const r = 16;
-                const circ = 2 * Math.PI * r;
-                grid.innerHTML += `
-      <div class="core-item">
-        <div class="core-label">C${i}</div>
-        <div class="core-ring">
-          <svg width="36" height="36" viewBox="0 0 36 36">
-            <circle class="core-ring-bg" cx="18" cy="18" r="${r}" fill="none" stroke-width="3"/>
-            <circle class="core-ring-fill" id="core-ring-${i}" cx="18" cy="18" r="${r}" fill="none" stroke-width="3"
-              stroke-dasharray="${circ}" stroke-dashoffset="${circ}"/>
-          </svg>
-          <div class="core-pct" id="core-pct-${i}">0%</div>
-        </div>
-      </div>`;
-            }
+            const R = 16, circ = 2 * Math.PI * R;
+            grid.innerHTML = Array.from({ length: NUM_CORES }, (_, i) => `
+          <div class="bg-bg border border-border rounded-md p-1.5 text-center">
+            <p class="text-[9px] text-muted mb-1">C${i}</p>
+            <div class="relative w-9 h-9 mx-auto">
+              <svg width="36" height="36" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+                <circle cx="18" cy="18" r="${R}" fill="none" stroke="${C.border}" stroke-width="3"/>
+                <circle id="cr-${i}" cx="18" cy="18" r="${R}" fill="none" stroke-width="3"
+                  class="ring-fill"
+                  stroke-dasharray="${circ}"
+                  stroke-dashoffset="${circ}"/>
+              </svg>
+              <div id="cp-${i}"
+                class="absolute inset-0 flex items-center justify-center text-[9px] font-semibold">
+                0%
+              </div>
+            </div>
+          </div>`).join('');
         }
 
         function updateCores() {
-            const r = 16;
-            const circ = 2 * Math.PI * r;
+            const R = 16, circ = 2 * Math.PI * R;
             let total = 0;
             for (let i = 0; i < NUM_CORES; i++) {
-                coreValues[i] = smoothRandom(coreValues[i], 2, 98, 15);
+                coreValues[i] = smooth(coreValues[i], 2, 98, 15);
                 total += coreValues[i];
                 const offset = circ * (1 - coreValues[i] / 100);
-                const el = document.getElementById(`core-ring-${i}`);
-                const pctEl = document.getElementById(`core-pct-${i}`);
-                const color = coreValues[i] > 80 ? '#ff4d4d' : coreValues[i] > 50 ? '#f0c040' : '#39d353';
-                if (el) { el.style.strokeDashoffset = offset; el.style.stroke = color; }
-                if (pctEl) pctEl.textContent = Math.round(coreValues[i]) + '%';
+                const color = coreColor(coreValues[i]);
+                const ring = document.getElementById(`cr-${i}`);
+                const pct = document.getElementById(`cp-${i}`);
+                if (ring) { ring.style.strokeDashoffset = offset; ring.style.stroke = color; }
+                if (pct) pct.textContent = Math.round(coreValues[i]) + '%';
             }
             const avg = total / NUM_CORES;
-            document.getElementById('cpu-total-val').textContent = Math.round(avg);
-            document.getElementById('cpu-total-val').style.color =
-                avg > 80 ? 'var(--red)' : avg > 50 ? 'var(--yellow)' : 'var(--accent)';
+            const el = document.getElementById('cpu-total-val');
+            el.textContent = Math.round(avg);
+            el.style.color = avg > 80 ? C.red : avg > 50 ? C.yellow : C.accent;
             return avg;
         }
 
-        // ── RAM Arc ──────────────────────────────────────────────────────────────
+        // ── ram arc ──────────────────────────────────────────────────
         function initMemArc() {
             document.getElementById('mem-arc-container').innerHTML = `
-    <svg width="160" height="90" viewBox="0 0 160 90">
-      <path d="M10,80 A70,70 0 0,1 150,80" fill="none" stroke="#1e2330" stroke-width="12" stroke-linecap="round"/>
-      <path id="ram-arc" d="M10,80 A70,70 0 0,1 150,80" fill="none" stroke="#4da6ff" stroke-width="12"
-        stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="220" style="transition:stroke-dashoffset 1s ease"/>
-      <text x="80" y="68" text-anchor="middle" fill="#e2e8f0" font-family="Syne,sans-serif" font-size="22" font-weight="800" id="ram-big">0</text>
-      <text x="80" y="82" text-anchor="middle" fill="#4a5568" font-family="JetBrains Mono,monospace" font-size="10">GB usados</text>
-    </svg>`;
+          <svg width="160" height="90" viewBox="0 0 160 90">
+            <path d="M10,80 A70,70 0 0,1 150,80"
+              fill="none" stroke="${C.border}" stroke-width="12" stroke-linecap="round"/>
+            <path id="ram-arc" d="M10,80 A70,70 0 0,1 150,80"
+              fill="none" stroke="${C.blue}" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="220" stroke-dashoffset="220"
+              style="transition: stroke-dashoffset 1s ease"/>
+            <text id="ram-big" x="80" y="68" text-anchor="middle"
+              fill="${C.text}" font-family="JetBrains Mono,monospace"
+              font-size="22" font-weight="700">0</text>
+            <text x="80" y="82" text-anchor="middle"
+              fill="${C.muted}" font-family="JetBrains Mono,monospace" font-size="10">
+              GB used
+            </text>
+          </svg>`;
         }
 
         function updateRam() {
-            ramUsed = smoothRandom(ramUsed, 4, 28, 0.5);
+            ramUsed = smooth(ramUsed, 4, 28, 0.5);
             const pct = ramUsed / RAM_TOTAL;
-            const arcLen = 220;
-            const offset = arcLen * (1 - pct);
             const arc = document.getElementById('ram-arc');
-            if (arc) arc.style.strokeDashoffset = offset;
             const big = document.getElementById('ram-big');
+            if (arc) arc.style.strokeDashoffset = 220 * (1 - pct);
             if (big) big.textContent = ramUsed.toFixed(1);
 
-            const free = RAM_TOTAL - ramUsed;
+            const free = (RAM_TOTAL - ramUsed).toFixed(1);
             document.getElementById('mem-info-grid').innerHTML = `
-    <div class="mem-stat"><div class="mem-stat-val" style="color:var(--red)">${ramUsed.toFixed(1)}</div><div class="mem-stat-label">GB Usados</div></div>
-    <div class="mem-stat"><div class="mem-stat-val" style="color:var(--green)">${free.toFixed(1)}</div><div class="mem-stat-label">GB Libres</div></div>
-    <div class="mem-stat"><div class="mem-stat-val" style="color:var(--muted)">${RAM_TOTAL}</div><div class="mem-stat-label">GB Total</div></div>
-  `;
-            return ramUsed / RAM_TOTAL * 100;
+          ${statCard(ramUsed.toFixed(1), 'GB Used', C.red)}
+          ${statCard(free, 'GB Free', C.green)}
+          ${statCard(RAM_TOTAL, 'GB Total', C.muted)}`;
+
+            return pct * 100;
         }
 
-        // ── Processes ────────────────────────────────────────────────────────────
-        function updateProcesses() {
-            procCpus = procCpus.map(v => smoothRandom(v, 0.1, 45, 5));
-            procMems = procMems.map(v => smoothRandom(v, 50, 3000, 80));
+        function statCard(val, label, color) {
+            return `
+          <div class="bg-bg border border-border rounded-md p-2 text-center">
+            <p class="text-[15px] font-bold" style="color:${color}">${val}</p>
+            <p class="text-[9px] text-muted mt-0.5">${label}</p>
+          </div>`;
+        }
 
-            const sorted = PROCESSES.map((p, i) => ({ ...p, cpu: procCpus[i], mem: procMems[i] }))
+        // ── processes ────────────────────────────────────────────────
+        function updateProcesses() {
+            procCpus = procCpus.map(v => smooth(v, 0.1, 45, 5));
+            procMems = procMems.map(v => smooth(v, 50, 3000, 80));
+
+            const sorted = PROCESSES
+                .map((p, i) => ({ ...p, cpu: procCpus[i], mem: procMems[i] }))
                 .sort((a, b) => b.cpu - a.cpu);
 
-            const tbody = document.getElementById('proc-tbody');
-            tbody.innerHTML = sorted.slice(0, 10).map(p => {
-                const cpuColor = p.cpu > 30 ? 'var(--red)' : p.cpu > 15 ? 'var(--yellow)' : 'var(--green)';
-                const memMB = (p.mem / 1024).toFixed(1);
+            document.getElementById('proc-tbody').innerHTML = sorted.slice(0, 10).map(p => {
+                const cc = p.cpu > 30 ? C.red : p.cpu > 15 ? C.yellow : C.green;
+                const memGB = (p.mem / 1024).toFixed(1);
                 const memPct = Math.min(p.mem / 3000 * 100, 100);
-                return `<tr>
-      <td><div class="proc-name">${p.name}</div></td>
-      <td><div class="proc-pid">${p.pid}</div></td>
-      <td>
-        <div class="mini-bar">
-          <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${p.cpu}%;background:${cpuColor}"></div></div>
-          <div class="mini-bar-val" style="color:${cpuColor}">${p.cpu.toFixed(1)}%</div>
-        </div>
-      </td>
-      <td>
-        <div class="mini-bar">
-          <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${memPct}%;background:var(--purple)"></div></div>
-          <div class="mini-bar-val" style="color:var(--purple)">${memMB}G</div>
-        </div>
-      </td>
-    </tr>`;
+                return `
+            <tr class="border-b border-border/40 hover:bg-white/[0.02] transition-colors">
+              <td class="py-1.5 pr-2 font-semibold text-[11px] max-w-[120px]
+                          overflow-hidden text-ellipsis whitespace-nowrap">${p.name}</td>
+              <td class="py-1.5 pr-2 text-muted text-[10px]">${p.pid}</td>
+              <td class="py-1.5 pr-2">
+                ${miniBar(p.cpu, 100, cc)}
+                <span class="text-[10px]" style="color:${cc}">${p.cpu.toFixed(1)}%</span>
+              </td>
+              <td class="py-1.5">
+                ${miniBar(memPct, 100, C.purple)}
+                <span class="text-[10px] text-purple">${memGB}G</span>
+              </td>
+            </tr>`;
             }).join('');
         }
 
-        // ── Disks ────────────────────────────────────────────────────────────────
+        function miniBar(val, max, color) {
+            const pct = Math.min(val / max * 100, 100);
+            return `
+          <div class="h-1 rounded-full mb-0.5 overflow-hidden" style="background:${C.border}">
+            <div class="h-full rounded-full transition-all duration-700"
+              style="width:${pct}%; background:${color}"></div>
+          </div>`;
+        }
+
+        // ── disks ────────────────────────────────────────────────────
         function renderDisks() {
             document.getElementById('disks-container').innerHTML = DISKS.map(d => {
                 const pct = (d.used / d.total * 100).toFixed(0);
-                return `<div class="disk-row">
-      <div class="disk-name">${d.name}</div>
-      <div class="disk-bar-track"><div class="disk-bar-fill" style="width:${pct}%"></div></div>
-      <div class="disk-pct">${pct}%</div>
-      <div class="disk-size">${d.used}/${d.total} GB</div>
-    </div>`;
+                return `
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-[10px] text-muted w-12 shrink-0">${d.name}</span>
+              <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background:${C.border}">
+                <div class="h-full rounded-full"
+                  style="width:${pct}%;
+                         background: linear-gradient(90deg, ${C.purple}, ${C.blue})">
+                </div>
+              </div>
+              <span class="text-[10px] w-9 text-right">${pct}%</span>
+              <span class="text-[10px] text-muted w-24 text-right">${d.used}/${d.total} GB</span>
+            </div>`;
             }).join('');
         }
 
-        // ── History Chart ─────────────────────────────────────────────────────────
+        // ── history chart ────────────────────────────────────────────
         function drawHistory() {
             const canvas = document.getElementById('historyChart');
             if (!canvas) return;
@@ -701,6 +416,15 @@
             const W = rect.width, H = rect.height;
             ctx.clearRect(0, 0, W, H);
 
+            // grid lines
+            ctx.strokeStyle = C.border;
+            ctx.lineWidth = 0.5;
+            [25, 50, 75].forEach(y => {
+                const py = H - (y / 100) * H;
+                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+            });
+
+            // line + gradient fill
             const drawLine = (data, color) => {
                 ctx.beginPath();
                 ctx.strokeStyle = color;
@@ -713,31 +437,25 @@
                     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-                // fill
                 ctx.shadowBlur = 0;
-                ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-                ctx.fillStyle = color.replace(')', ', 0.08)').replace('rgb', 'rgba').replace('#', '');
-                // simpler: just use alpha
+
+                // area fill
+                const last = data.length - 1;
+                ctx.lineTo((last / (HISTORY_LEN - 1)) * W, H);
+                ctx.lineTo(0, H);
+                ctx.closePath();
                 const grd = ctx.createLinearGradient(0, 0, 0, H);
-                grd.addColorStop(0, color + '22');
+                grd.addColorStop(0, color + '33');
                 grd.addColorStop(1, color + '00');
                 ctx.fillStyle = grd;
                 ctx.fill();
             };
 
-            // Grid lines
-            ctx.strokeStyle = '#1e2330';
-            ctx.lineWidth = 0.5;
-            [25, 50, 75].forEach(y => {
-                const py = H - (y / 100) * H;
-                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
-            });
-
-            drawLine(cpuHistory, '#ff4d00');
-            drawLine(ramHistory, '#4da6ff');
+            drawLine(cpuHistory, C.accent);
+            drawLine(ramHistory, C.blue);
         }
 
-        // ── Clock & Uptime ────────────────────────────────────────────────────────
+        // ── clock ────────────────────────────────────────────────────
         function updateTime() {
             uptimeSeconds++;
             const h = Math.floor(uptimeSeconds / 3600);
@@ -746,33 +464,29 @@
             document.getElementById('uptime').textContent =
                 `uptime: ${h}h ${m}m ${s}s`;
             document.getElementById('clock').textContent =
-                new Date().toLocaleTimeString('es-ES');
+                new Date().toLocaleTimeString('en-US', { hour12: false });
         }
 
-        // ── Main Loop ─────────────────────────────────────────────────────────────
+        // ── tick ─────────────────────────────────────────────────────
         function tick() {
             const cpuAvg = updateCores();
             const ramPct = updateRam();
             updateProcesses();
             updateTime();
 
-            cpuHistory.push(cpuAvg);
-            cpuHistory.shift();
-            ramHistory.push(ramPct);
-            ramHistory.shift();
+            cpuHistory.push(cpuAvg); cpuHistory.shift();
+            ramHistory.push(ramPct); ramHistory.shift();
 
             drawHistory();
         }
 
-        // Init
+        // ── boot ─────────────────────────────────────────────────────
         initCores();
         initMemArc();
         renderDisks();
 
-        // Resize observer for canvas
-        const ro = new ResizeObserver(() => drawHistory());
-        const hc = document.getElementById('historyChart');
-        if (hc) ro.observe(hc);
+        const ro = new ResizeObserver(drawHistory);
+        ro.observe(document.getElementById('historyChart'));
 
         setInterval(tick, 1200);
         tick();

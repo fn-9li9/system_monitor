@@ -1,6 +1,6 @@
-use sysinfo::{System, Disks, Networks, Pid};
-use std::{thread, time::Duration};
 use std::io::{self, Write};
+use std::{thread, time::Duration};
+use sysinfo::{Disks, Networks, System};
 
 fn clear_screen() {
     print!("\x1B[2J\x1B[1;1H");
@@ -16,7 +16,12 @@ fn bar(value: f32, max: f32, width: usize) -> String {
     } else {
         "\x1b[32m"
     };
-    format!("{}[{}{}]\x1b[0m", color, "#".repeat(filled), ".".repeat(empty))
+    format!(
+        "{}[{}{}]\x1b[0m",
+        color,
+        "#".repeat(filled),
+        ".".repeat(empty)
+    )
 }
 
 fn format_bytes(bytes: u64) -> String {
@@ -60,26 +65,50 @@ fn main() {
 
         // -- general info
         println!("\n\x1b[1m System\x1b[0m");
-        println!("  OS:       {}", System::name().unwrap_or("Unknown".to_string()));
-        println!("  Kernel:   {}", System::kernel_version().unwrap_or("?".to_string()));
-        println!("  Host:     {}", System::host_name().unwrap_or("?".to_string()));
+        println!(
+            "  OS:       {}",
+            System::name().unwrap_or("Unknown".to_string())
+        );
+        println!(
+            "  Kernel:   {}",
+            System::kernel_version().unwrap_or("?".to_string())
+        );
+        println!(
+            "  Host:     {}",
+            System::host_name().unwrap_or("?".to_string())
+        );
         let uptime = System::uptime();
-        println!("  Uptime:   {}h {}m {}s", uptime / 3600, (uptime % 3600) / 60, uptime % 60);
+        println!(
+            "  Uptime:   {}h {}m {}s",
+            uptime / 3600,
+            (uptime % 3600) / 60,
+            uptime % 60
+        );
 
         // -- cpu
         println!("\n\x1b[1m CPU\x1b[0m");
         let cpus = sys.cpus();
+
+        // get model and core count from the system
+        let cpu_brand = cpus
+            .first()
+            .map(|c| c.brand().to_string())
+            .unwrap_or("Unknown".to_string());
+        let core_count = cpus.len();
+
+        println!("  Model:    {}", cpu_brand);
+        println!("  Cores:    {}", core_count);
+
         for (i, cpu) in cpus.iter().enumerate() {
             let usage = cpu.cpu_usage();
-            println!(
-                "  Core {:>2}: {} {:>5.1}%",
-                i,
-                bar(usage, 100.0, 25),
-                usage
-            );
+            println!("  Core {:>2}: {} {:>5.1}%", i, bar(usage, 100.0, 25), usage);
         }
         let total_cpu: f32 = cpus.iter().map(|c| c.cpu_usage()).sum::<f32>() / cpus.len() as f32;
-        println!("  \x1b[1mTotal:   {} {:.1}%\x1b[0m", bar(total_cpu, 100.0, 25), total_cpu);
+        println!(
+            "  \x1b[1mTotal:   {} {:.1}%\x1b[0m",
+            bar(total_cpu, 100.0, 25),
+            total_cpu
+        );
 
         // -- ram
         println!("\n\x1b[1m Memory\x1b[0m");
@@ -103,7 +132,11 @@ fn main() {
             let used_swap = sys.used_swap();
             let swap_pct = used_swap as f32 / total_swap as f32 * 100.0;
             println!("  {} {:.1}%", bar(swap_pct, 100.0, 35), swap_pct);
-            println!("  Used: {}  Total: {}", format_bytes(used_swap), format_bytes(total_swap));
+            println!(
+                "  Used: {}  Total: {}",
+                format_bytes(used_swap),
+                format_bytes(total_swap)
+            );
         }
 
         // -- disks
